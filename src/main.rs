@@ -88,7 +88,7 @@ fn make_raw_records(file_name: &str) -> Vec<Vec<char>> {
     records
 }
 
-// Reads a text file into a Vector of `char`s (characters)
+/// Reads a text file into a Vector of `char`s (characters)
 pub fn read_string_from_file_to_vector(file_path: &str) -> io::Result<Vec<char>> {
     let mut f = File::open(file_path.trim_matches(|c| c == '\'' || c == ' '))?;
     let mut string_from_file = String::new();
