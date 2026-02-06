@@ -4,39 +4,30 @@ use std::io;
 use std::io::prelude::*;
 
 fn main() {
-    let records = make_raw_records("./test-data/test_10.mrc");
-    println!("Found {} records.", records.len());
-    // 3. Figure out how to parse the LEADER of each of these records
-    for record in records {
-        // print_record_type(&record);
-        let directory = get_directory(&record);
-        let mut directory_as_structs = HashMap::new(); // <&[char, Entry>
-        for d_entry in &directory {
-            let parsed_d_entry = parse_single_directory_entry(d_entry);
-            directory_as_structs.insert(
-                parsed_d_entry.tag.iter().collect::<String>(),
-                parsed_d_entry,
-            );
-        }
+    let raw_records = make_raw_records("./test-data/test_10.mrc");
+    println!("Found {} raw_records.", raw_records.len());
+    // 3. Figure out how to parse the LEADER of each of these raw_records
+    for raw_record in raw_records {
+        // let directory_as_structs = make_directory_of_record(&raw_record);
+        let parsed_record: Record = parse_raw_record(raw_record);
         // Now we need to use the information isn each directory
         // entry to go look-up information?
 
-        // We'll start with field 245
-        // println!("{:?}", directory_as_structs["245"]);
-        let title_field_length = number_cleaner(directory_as_structs["245"].field_length);
-        let title_starting_character_position =
-            number_cleaner(directory_as_structs["245"].starting_character_position);
+        //         // We'll start with field 245
+        //         let title_field_length = number_cleaner(directory_as_structs["245"].field_length);
+        //         let title_starting_character_position =
+        //             number_cleaner(directory_as_structs["245"].starting_character_position);
 
-        // Adjust for offset of directory and leader characters
-        let title_starting_character_position =
-            title_starting_character_position + directory.len() * 12 + 24;
+        //         // Adjust for offset of directory and leader characters
+        //         let title_starting_character_position =
+        //             title_starting_character_position + raw_directory.len() * 12 + 24;
 
-        let actual_title = &record[title_starting_character_position
-            ..title_starting_character_position + title_field_length];
-        // I'm not sure about the first few characters of the actual title
-        let indicator1 = actual_title[0];
-        let indicator2 = actual_title[1];
-        println!("{}", actual_title[2..].iter().collect::<String>());
+        //         let actual_title = &raw_record[title_starting_character_position
+        //             ..title_starting_character_position + title_field_length];
+        //         // I'm not sure about the first few characters of the actual title
+        //         let indicator1 = actual_title[0];
+        //         let indicator2 = actual_title[1];
+        //         println!("{}", actual_title[2..].iter().collect::<String>());
     }
 }
 
@@ -100,6 +91,75 @@ fn parse_single_directory_entry(d_entry: &[char]) -> DEntry<'_> {
         field_length: field_length,
         starting_character_position: starting_character_position,
     }
+}
+
+#[derive(Debug)]
+struct Record<'a> {
+    data: Vec<char>,
+    fields: Vec<Field<'a>>,
+    leader: &'a [char; 24],
+}
+
+#[derive(Debug)]
+struct Field<'a> {
+    tag: &'a [char],   // both Control and Data fields
+    value: &'a [char], // for Control fields
+    indicator1: char,  // for Data fields. Maybe single char?
+    indicator2: char,  // for Data fields. Maybe single char?
+                       // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
+}
+
+// #[derive(Debug)]
+// struct SubField<'a> {
+//     code: &'a [char],  // e.g. "a"
+//     value: &'a [char], // e.g. "Diabetes"
+// }
+
+fn make_directory_of_record(record: &[char]) -> HashMap<String, DEntry<'_>> {
+    let directory = get_directory(&record);
+    let mut directory_as_structs = HashMap::new(); // <&[char, DEntry>
+    for d_entry in &directory {
+        let parsed_d_entry = parse_single_directory_entry(d_entry);
+        directory_as_structs.insert(
+            parsed_d_entry.tag.iter().collect::<String>(),
+            parsed_d_entry,
+        );
+    }
+    directory_as_structs
+}
+
+// fn parse_raw_record(&raw_record: &[char]) -> Record {
+fn parse_raw_record(raw_record: &[char]) -> Record<'static> {
+    let mut fields: Vec<Field> = vec![];
+    let directory_raw: Vec<&[char]> = get_directory(&raw_record);
+    let starting_character_position_offset = directory_raw.len() * 12 + 24;
+    for raw_directory_entry in raw_record[24..raw_record.len()].chunks_exact(12) {
+        if raw_directory_entry.contains(&(0x1e as char)) {
+            break;
+        }
+        let field_length: usize = number_cleaner(&raw_directory_entry[3..=6]);
+        let starting_character_position: usize = number_cleaner(&raw_directory_entry[7..=11]);
+        let starting_character_position =
+            starting_character_position + starting_character_position_offset;
+        let value: &[char] =
+            &raw_record[starting_character_position..starting_character_position + field_length];
+
+        let this_field = Field {
+            tag: &raw_directory_entry[0..=2],
+            value,                // for Control fields
+            indicator1: value[0], // for Data fields. Maybe single char?
+            indicator2: value[1], // for Data fields. Maybe single char?
+                                  // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
+        };
+        fields.push(this_field);
+    }
+
+    let mut this_record: Record = Record {
+        leader: raw_record[0..24].try_into().unwrap(),
+        data: raw_record.to_vec(), // I'm tired!
+        fields,
+    };
+    this_record
 }
 
 fn print_record_type(record: &[char]) {
