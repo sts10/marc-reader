@@ -8,10 +8,10 @@ fn main() {
     println!("Found {} records.", records.len());
     // 3. Figure out how to parse the LEADER of each of these records
     for record in records {
-        print_record_type(&record);
+        // print_record_type(&record);
         let directory = get_directory(&record);
         let mut directory_as_structs = HashMap::new(); // <&[char, Entry>
-        for d_entry in directory {
+        for d_entry in &directory {
             let parsed_d_entry = parse_single_directory_entry(d_entry);
             directory_as_structs.insert(
                 parsed_d_entry.tag.iter().collect::<String>(),
@@ -22,13 +22,20 @@ fn main() {
         // entry to go look-up information?
 
         // We'll start with field 245
-        println!("{:?}", directory_as_structs["245"]);
+        // println!("{:?}", directory_as_structs["245"]);
         let title_field_length = number_cleaner(directory_as_structs["245"].field_length);
         let title_starting_character_position =
             number_cleaner(directory_as_structs["245"].starting_character_position);
-        // Friday TO DO:
-        // Figure out where the starting_character_position actually
-        // starts from...
+
+        // Adjust for offset of directory and leader characters
+        let title_starting_character_position =
+            title_starting_character_position + directory.len() * 12 + 24;
+
+        let actual_title = &record[title_starting_character_position
+            ..title_starting_character_position + title_field_length];
+        let indicator1 = actual_title[0];
+        let indicator2 = actual_title[1];
+        println!("{}", actual_title[3..].iter().collect::<String>());
     }
 }
 
