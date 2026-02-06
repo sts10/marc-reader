@@ -7,6 +7,10 @@ fn main() {
     // 3. Figure out how to parse the LEADER of each of these records
     for record in records {
         print_record_type(&record);
+        let directory = get_directory(&record);
+        for entry in directory {
+            println!("{}", entry.iter().collect::<String>());
+        }
         // This is a bald attempt at learning about fields, but I
         // I think I need to handle the Leader and the Directory
         // first.
@@ -28,8 +32,7 @@ fn main() {
             // } else {
             //     field.iter().collect()
             // };
-            let string_to_print: String = field.iter().collect();
-            println!("{}", string_to_print);
+            let _string_to_print: String = field.iter().collect();
         }
     }
 }
@@ -44,6 +47,31 @@ fn _take_until(input: Vec<char>, delimiter: char) -> Option<Vec<char>> {
         }
     }
     None
+}
+
+// The Directory immediately follows the Leader at the beginning
+// of the record and is located at character position 24.
+// Each Directory entry is 12 character positions in length and
+// contains three portions: the field tag, the field length,
+// and the starting character position.
+//
+// How do I find the end of the directory?
+// One way may be to take until the first 0x1e we find
+//
+// The output type of this function should probably be Vec<&[char; 12]>
+// But I'm taking the easy way for now
+fn get_directory(record: &[char]) -> Vec<&[char]> {
+    // let record_minus_leader: Vec<char> = record[24..record.len()].try_into().unwrap();
+    let mut directory: Vec<&[char]> = vec![];
+    // We know each Directory entry is exactly 12 characters
+    for entry in record[24..record.len()].chunks_exact(12) {
+        // 0x1e is marks the end of the directory
+        if entry.contains(&(0x1e as char)) {
+            return directory;
+        }
+        directory.push(entry);
+    }
+    panic!("Error parsing a record's Directory");
 }
 
 fn print_record_type(record: &[char]) {
