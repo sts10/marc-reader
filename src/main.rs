@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 fn main() {
-    let records = make_raw_records("./my-data/test_10.mrc");
+    let records = make_raw_records("./test-data/test_10.mrc");
     println!("Found {} records.", records.len());
     // 3. Figure out how to parse the LEADER of each of these records
     for record in records {
