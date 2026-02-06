@@ -23,10 +23,13 @@ fn main() {
         println!("This record has {} fields", field_count);
         // 4. Parse field 245 (title) of each Record
         for field in fields {
-            // Nope...
-            if field.len() > 5 && field[0..2] == ['2', '4', '5'] {
-                println!("{:?}", field);
-            }
+            // let string_to_print: String = if field.len() > 72 {
+            //     field[0..70].iter().collect()
+            // } else {
+            //     field.iter().collect()
+            // };
+            let string_to_print: String = field.iter().collect();
+            println!("{}", string_to_print);
         }
     }
 }
