@@ -1,6 +1,8 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
+
 fn main() {
     let records = make_raw_records("./test-data/test_10.mrc");
     println!("Found {} records.", records.len());
@@ -8,32 +10,27 @@ fn main() {
     for record in records {
         print_record_type(&record);
         let directory = get_directory(&record);
-        for entry in directory {
-            println!("{}", entry.iter().collect::<String>());
+        let mut directory_as_structs = HashMap::new(); // <&[char, Entry>
+        for d_entry in directory {
+            let parsed_d_entry = parse_single_directory_entry(d_entry);
+            directory_as_structs.insert(
+                parsed_d_entry.tag.iter().collect::<String>(),
+                parsed_d_entry,
+            );
         }
-        // This is a bald attempt at learning about fields, but I
-        // I think I need to handle the Leader and the Directory
-        // first.
-        let mut field_count = 0;
-        let mut fields: Vec<Vec<char>> = vec![vec![]]; // not sure if this initalization is corrent.
-        for ch in record {
-            fields[field_count].push(ch);
-            if ch == 0x1e as char {
-                // println!("found end of a field");
-                field_count = field_count + 1;
-                fields.push(vec![]);
-            }
-        }
-        println!("This record has {} fields", field_count);
-        // 4. Parse field 245 (title) of each Record
-        for field in fields {
-            // let string_to_print: String = if field.len() > 72 {
-            //     field[0..70].iter().collect()
-            // } else {
-            //     field.iter().collect()
-            // };
-            let _string_to_print: String = field.iter().collect();
-        }
+        // Now we need to use the information isn each directory
+        // entry to go look-up information?
+
+        // We'll start with field 245
+        println!("{:?}", directory_as_structs["245"]);
+        let title_field_length = directory_as_structs["245"].field_length;
+        let title_starting_character_position =
+            directory_as_structs["245"].starting_character_position;
+        // Friday TO DO:
+        // For these two above variables, we need to remove leading 0s
+        // and then parse into integers.
+        // Then figure out where the starting_character_position actually
+        // starts from...
     }
 }
 
@@ -72,6 +69,31 @@ fn get_directory(record: &[char]) -> Vec<&[char]> {
         directory.push(entry);
     }
     panic!("Error parsing a record's Directory");
+}
+
+/// A single directory entry (12 characters)
+#[derive(Debug)]
+struct DEntry<'a> {
+    tag: &'a [char],                         // lngth of 3
+    field_length: &'a [char],                // length of 4
+    starting_character_position: &'a [char], // length of 5
+}
+// 00-02 - Tag
+// Three ASCII numeric or ASCII alphabetic characters (upper case or lower case, but not both) that identify an associated variable field.
+// 03-06 - Field length
+// Four ASCII numeric characters that specify the length of the variable field, including indicators, subfield codes, data, and the field terminator. A Field length number of less than four digits is right justified and unused positions contain zeros.
+// 07-11 - Starting character position
+// Five ASCII numeric characters that specify the starting character position of the variable field relative to the Base address of data (Leader/12-16) of the record. A Starting character position number of less than five digits is right justified and unused positions contain zeros.
+fn parse_single_directory_entry(d_entry: &[char]) -> DEntry<'_> {
+    let tag: &[char] = &d_entry[0..=2];
+    let field_length: &[char] = &d_entry[3..=6];
+    let starting_character_position: &[char] = &d_entry[7..=11];
+
+    DEntry {
+        tag: tag,
+        field_length: field_length,
+        starting_character_position: starting_character_position,
+    }
 }
 
 fn print_record_type(record: &[char]) {
