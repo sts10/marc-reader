@@ -9,7 +9,7 @@ fn main() {
     // 3. Figure out how to parse the LEADER of each of these raw_records
     for raw_record in raw_records {
         // let directory_as_structs = make_directory_of_record(&raw_record);
-        let parsed_record: Record = parse_raw_record(raw_record);
+        let parsed_record: Record = parse_raw_record(raw_record.to_vec());
         // Now we need to use the information isn each directory
         // entry to go look-up information?
 
@@ -93,20 +93,20 @@ fn parse_single_directory_entry(d_entry: &[char]) -> DEntry<'_> {
     }
 }
 
-#[derive(Debug)]
-struct Record<'a> {
+#[derive(Debug, Clone)]
+struct Record {
     data: Vec<char>,
-    fields: Vec<Field<'a>>,
-    leader: &'a [char; 24],
+    fields: Vec<Field>,
+    leader: Vec<char>, // It'd be neat to have this set to 24 characters?  &'a [char; 24],
 }
 
-#[derive(Debug)]
-struct Field<'a> {
-    tag: &'a [char],   // both Control and Data fields
-    value: &'a [char], // for Control fields
-    indicator1: char,  // for Data fields. Maybe single char?
-    indicator2: char,  // for Data fields. Maybe single char?
-                       // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
+#[derive(Debug, Clone)]
+struct Field {
+    tag: String,      // both Control and Data fields
+    value: String,    // for Control fields
+    indicator1: char, // for Data fields. Maybe single char?
+    indicator2: char, // for Data fields. Maybe single char?
+                      // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
 }
 
 // #[derive(Debug)]
@@ -129,10 +129,23 @@ fn make_directory_of_record(record: &[char]) -> HashMap<String, DEntry<'_>> {
 }
 
 // fn parse_raw_record(&raw_record: &[char]) -> Record {
-fn parse_raw_record(raw_record: &[char]) -> Record<'static> {
+fn parse_raw_record(raw_record: Vec<char>) -> Record {
     let mut fields: Vec<Field> = vec![];
-    let directory_raw: Vec<&[char]> = get_directory(&raw_record);
-    let starting_character_position_offset = directory_raw.len() * 12 + 24;
+
+    // this is awfu but it's the most sure way of finding the character langth of
+    // the raw directory, which we need to know the starting position offset!
+    let mut directory_size = 0;
+    for ch in &raw_record[24..raw_record.len()] {
+        if *ch == 0x1e as char {
+            break;
+        } else {
+            directory_size = directory_size + 1;
+        }
+    }
+
+    let starting_character_position_offset = directory_size + 24;
+    let leader: &Vec<char> = &raw_record[0..24].to_vec(); // inefficient?
+
     for raw_directory_entry in raw_record[24..raw_record.len()].chunks_exact(12) {
         if raw_directory_entry.contains(&(0x1e as char)) {
             break;
@@ -141,23 +154,37 @@ fn parse_raw_record(raw_record: &[char]) -> Record<'static> {
         let starting_character_position: usize = number_cleaner(&raw_directory_entry[7..=11]);
         let starting_character_position =
             starting_character_position + starting_character_position_offset;
-        let value: &[char] =
-            &raw_record[starting_character_position..starting_character_position + field_length];
+        // Let's make this easier and use a String
+        let value: String = raw_record
+            [starting_character_position..starting_character_position + field_length]
+            .iter()
+            .collect();
+
+        // let indicator1 = '0';
+        // let indicator2 = '1';
+        let indicator1 = &value
+            .chars()
+            .nth(0)
+            .expect("Value too short to have an first indicator");
+        let indicator2 = &value
+            .chars()
+            .nth(1)
+            .expect("Value too short to have an second indicator");
 
         let this_field = Field {
-            tag: &raw_directory_entry[0..=2],
-            value,                // for Control fields
-            indicator1: value[0], // for Data fields. Maybe single char?
-            indicator2: value[1], // for Data fields. Maybe single char?
-                                  // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
+            tag: raw_directory_entry[0..=2].iter().collect(),
+            value, // for Control fields
+            indicator1: *indicator1,
+            indicator2: *indicator2,
+            // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
         };
         fields.push(this_field);
     }
 
-    let mut this_record: Record = Record {
-        leader: raw_record[0..24].try_into().unwrap(),
-        data: raw_record.to_vec(), // I'm tired!
-        fields,
+    let this_record: Record = Record {
+        leader: leader.to_vec(),
+        data: raw_record.clone(), // I'm tired!
+        fields: fields.clone(),
     };
     this_record
 }
