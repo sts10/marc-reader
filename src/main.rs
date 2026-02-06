@@ -12,7 +12,7 @@ fn main() {
             parsed_record.leader.iter().collect::<String>()
         );
         for field in parsed_record.fields {
-            println!("{} : {}", field.tag, field.value);
+            println!("  {} : {}", field.tag, field.value);
         }
     }
 }
