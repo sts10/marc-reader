@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -6,41 +5,16 @@ use std::io::prelude::*;
 fn main() {
     let raw_records = make_raw_records("./test-data/test_10.mrc");
     println!("Found {} raw_records.", raw_records.len());
-    // 3. Figure out how to parse the LEADER of each of these raw_records
     for raw_record in raw_records {
-        // let directory_as_structs = make_directory_of_record(&raw_record);
         let parsed_record: Record = parse_raw_record(raw_record.to_vec());
-        // Now we need to use the information isn each directory
-        // entry to go look-up information?
-
-        //         // We'll start with field 245
-        //         let title_field_length = number_cleaner(directory_as_structs["245"].field_length);
-        //         let title_starting_character_position =
-        //             number_cleaner(directory_as_structs["245"].starting_character_position);
-
-        //         // Adjust for offset of directory and leader characters
-        //         let title_starting_character_position =
-        //             title_starting_character_position + raw_directory.len() * 12 + 24;
-
-        //         let actual_title = &raw_record[title_starting_character_position
-        //             ..title_starting_character_position + title_field_length];
-        //         // I'm not sure about the first few characters of the actual title
-        //         let indicator1 = actual_title[0];
-        //         let indicator2 = actual_title[1];
-        //         println!("{}", actual_title[2..].iter().collect::<String>());
-    }
-}
-
-fn _take_until(input: Vec<char>, delimiter: char) -> Option<Vec<char>> {
-    let mut output: Vec<char> = vec![];
-    for ch in input {
-        if ch == delimiter {
-            return Some(output);
-        } else {
-            output.push(ch);
+        println!(
+            "Leader: {}",
+            parsed_record.leader.iter().collect::<String>()
+        );
+        for field in parsed_record.fields {
+            println!("{} : {}", field.tag, field.value);
         }
     }
-    None
 }
 
 // The Directory immediately follows the Leader at the beginning
@@ -48,50 +22,13 @@ fn _take_until(input: Vec<char>, delimiter: char) -> Option<Vec<char>> {
 // Each Directory entry is 12 character positions in length and
 // contains three portions: the field tag, the field length,
 // and the starting character position.
-//
-// How do I find the end of the directory?
-// One way may be to take until the first 0x1e we find
-//
-// The output type of this function should probably be Vec<&[char; 12]>
-// But I'm taking the easy way for now
-fn get_directory(record: &[char]) -> Vec<&[char]> {
-    // let record_minus_leader: Vec<char> = record[24..record.len()].try_into().unwrap();
-    let mut directory: Vec<&[char]> = vec![];
-    // We know each Directory entry is exactly 12 characters
-    for entry in record[24..record.len()].chunks_exact(12) {
-        // 0x1e is marks the end of the directory
-        if entry.contains(&(0x1e as char)) {
-            return directory;
-        }
-        directory.push(entry);
-    }
-    panic!("Error parsing a record's Directory");
-}
 
-/// A single directory entry (12 characters)
-#[derive(Debug)]
-struct DEntry<'a> {
-    tag: &'a [char],                         // lngth of 3
-    field_length: &'a [char],                // length of 4
-    starting_character_position: &'a [char], // length of 5
-}
 // 00-02 - Tag
 // Three ASCII numeric or ASCII alphabetic characters (upper case or lower case, but not both) that identify an associated variable field.
 // 03-06 - Field length
 // Four ASCII numeric characters that specify the length of the variable field, including indicators, subfield codes, data, and the field terminator. A Field length number of less than four digits is right justified and unused positions contain zeros.
 // 07-11 - Starting character position
 // Five ASCII numeric characters that specify the starting character position of the variable field relative to the Base address of data (Leader/12-16) of the record. A Starting character position number of less than five digits is right justified and unused positions contain zeros.
-fn parse_single_directory_entry(d_entry: &[char]) -> DEntry<'_> {
-    let tag: &[char] = &d_entry[0..=2];
-    let field_length: &[char] = &d_entry[3..=6];
-    let starting_character_position: &[char] = &d_entry[7..=11];
-
-    DEntry {
-        tag: tag,
-        field_length: field_length,
-        starting_character_position: starting_character_position,
-    }
-}
 
 #[derive(Debug, Clone)]
 struct Record {
@@ -115,20 +52,6 @@ struct Field {
 //     value: &'a [char], // e.g. "Diabetes"
 // }
 
-fn make_directory_of_record(record: &[char]) -> HashMap<String, DEntry<'_>> {
-    let directory = get_directory(&record);
-    let mut directory_as_structs = HashMap::new(); // <&[char, DEntry>
-    for d_entry in &directory {
-        let parsed_d_entry = parse_single_directory_entry(d_entry);
-        directory_as_structs.insert(
-            parsed_d_entry.tag.iter().collect::<String>(),
-            parsed_d_entry,
-        );
-    }
-    directory_as_structs
-}
-
-// fn parse_raw_record(&raw_record: &[char]) -> Record {
 fn parse_raw_record(raw_record: Vec<char>) -> Record {
     let mut fields: Vec<Field> = vec![];
 
@@ -160,8 +83,7 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
             .iter()
             .collect();
 
-        // let indicator1 = '0';
-        // let indicator2 = '1';
+        // Best guess as to where these indicators are...
         let indicator1 = &value
             .chars()
             .nth(0)
@@ -189,7 +111,7 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
     this_record
 }
 
-fn print_record_type(record: &[char]) {
+fn _print_record_type(record: &[char]) {
     let leader: &[char; 24] = record[0..24].try_into().unwrap();
     let _record_length = &leader[0..5];
     let record_type = match leader[6] {
