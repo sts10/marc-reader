@@ -23,13 +23,11 @@ fn main() {
 
         // We'll start with field 245
         println!("{:?}", directory_as_structs["245"]);
-        let title_field_length = directory_as_structs["245"].field_length;
+        let title_field_length = number_cleaner(directory_as_structs["245"].field_length);
         let title_starting_character_position =
-            directory_as_structs["245"].starting_character_position;
+            number_cleaner(directory_as_structs["245"].starting_character_position);
         // Friday TO DO:
-        // For these two above variables, we need to remove leading 0s
-        // and then parse into integers.
-        // Then figure out where the starting_character_position actually
+        // Figure out where the starting_character_position actually
         // starts from...
     }
 }
@@ -155,4 +153,14 @@ pub fn read_string_from_file_to_vector(file_path: &str) -> io::Result<Vec<char>>
         vector_of_chars.push(c);
     }
     Ok(vector_of_chars)
+}
+
+/// ```
+/// assert_eq!(number_cleaner2(&['0', '0', '1', '1']), 11);
+/// assert_eq!(number_cleaner2(&['0', '0', '0', '5', '4']), 54);
+/// assert_eq!(number_cleaner2(&['0', '0', '1', '0', '7']), 107);
+/// ```
+fn number_cleaner(chs: &[char]) -> usize {
+    let as_string: String = chs.iter().collect();
+    as_string.parse().unwrap()
 }
