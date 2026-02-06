@@ -33,9 +33,10 @@ fn main() {
 
         let actual_title = &record[title_starting_character_position
             ..title_starting_character_position + title_field_length];
+        // I'm not sure about the first few characters of the actual title
         let indicator1 = actual_title[0];
         let indicator2 = actual_title[1];
-        println!("{}", actual_title[3..].iter().collect::<String>());
+        println!("{}", actual_title[2..].iter().collect::<String>());
     }
 }
 
