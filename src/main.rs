@@ -16,15 +16,11 @@ fn main() {
         for field in parsed_record.fields {
             if field.tag == "008" {
                 println!("  {} : {}", field.tag, field.value);
-                pub_year_008 = (&field.value[8..12]).trim().to_string();
+                pub_year_008 = (field.value[8..12]).trim().to_string();
             } else if field.tag == "260" {
                 // SUBFIELD_DELIMITER = 0x1F
                 pub_year_260 = split_and_vectorize(&field.value, 0x1F as char)[3]
-                    .replace('[', "")
-                    .replace(']', "")
-                    .replace('c', "")
-                    .replace('.', "")
-                    .replace('?', "")
+                    .replace(['[', ']', 'c', '.', '?'], "")
                     .trim()
                     .to_string();
             }
