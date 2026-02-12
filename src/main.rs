@@ -11,8 +11,32 @@ fn main() {
             "Leader: {}",
             parsed_record.leader.iter().collect::<String>()
         );
+        let mut pub_year_008 = "".to_string();
+        let mut pub_year_260 = "".to_string();
         for field in parsed_record.fields {
-            println!("  {} : {}", field.tag, field.value);
+            if field.tag == "008" {
+                println!("  {} : {}", field.tag, field.value);
+                pub_year_008 = (&field.value[8..12]).trim().to_string();
+            } else if field.tag == "260" {
+                // SUBFIELD_DELIMITER = 0x1F
+                pub_year_260 = split_and_vectorize(&field.value, 0x1F as char)[3]
+                    .replace('[', "")
+                    .replace(']', "")
+                    .replace('c', "")
+                    .replace('.', "")
+                    .replace('?', "")
+                    .trim()
+                    .to_string();
+            }
+        }
+        if pub_year_008 != pub_year_260 {
+            // Now check for weird edge case (string formatting?)
+            if pub_year_008.parse::<usize>().is_ok()
+                && pub_year_260.parse::<usize>().is_ok()
+                && pub_year_008.parse::<usize>() == pub_year_260.parse::<usize>()
+            {
+                println!("Found messy record!\n{} != {}", pub_year_008, pub_year_260);
+            }
         }
     }
 }
@@ -46,6 +70,9 @@ struct Field {
                       // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
 }
 
+// Note to self, I think
+// SUBFIELD_DELIMITER = 0x1F
+// and FIELD_TERMINATOR = 0x1E
 // #[derive(Debug)]
 // struct SubField<'a> {
 //     code: &'a [char],  // e.g. "a"
@@ -180,4 +207,19 @@ pub fn read_string_from_file_to_vector(file_path: &str) -> io::Result<Vec<char>>
 fn number_cleaner(chs: &[char]) -> usize {
     let as_string: String = chs.iter().collect();
     as_string.parse().unwrap()
+}
+
+// /// Simple helper function that splits a `str` by a given substring `str`,
+// /// Then returns a Vector of `str`s.
+// /// ```
+// /// use crate::split_and_vectorize;
+// /// assert_eq!(split_and_vectorize("a:b:c",":"), vec!["a","b","c"]);
+// /// ```
+// /// I find this a handy general helper function.
+// pub fn split_and_vectorize<'a>(string_to_split: &'a str, splitter: &str) -> Vec<&'a str> {
+//     string_to_split.split(splitter).collect()
+// }
+
+pub fn split_and_vectorize<'a>(string_to_split: &'a str, splitter: char) -> Vec<&'a str> {
+    string_to_split.split(splitter).collect()
 }
