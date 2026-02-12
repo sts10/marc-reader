@@ -10,6 +10,8 @@ First-semester MLIS student trying to learn the structure of [a MARC record](htt
 ## Test data from:
 * [https://github.com/hectorcorrea/marcli/tree/main/data](https://github.com/hectorcorrea/marcli/tree/main/data)
 
+Might grab some records from [this LOC page](https://loc.gov/cds/products/marcDist.php) for further testing/bench-marking.
+
 ## To do
 - [ ] Parse leader as its own Struct (consult [marc-record](https://github.com/demarque/marc-record/blob/main/src/parser.rs) and [marcli](https://github.com/hectorcorrea/marcli/blob/main/pkg/marc/leader.go))
 - [ ] Implement basic search functionality (just of all "non-control fields"?)
