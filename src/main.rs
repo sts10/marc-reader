@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -15,14 +16,14 @@ fn main() {
         let mut pub_year_260 = "".to_string();
         for field in parsed_record.fields {
             if field.tag == "008" {
-                println!("  {} : {}", field.tag, field.value);
-                pub_year_008 = (field.value[8..12]).trim().to_string();
+                // since we know this the is 008 field, we know it
+                // will have a value
+                let field_value = field.value.unwrap();
+                println!("  {} : {}", field.tag, field_value);
+                pub_year_008 = (field_value[8..12]).trim().to_string();
             } else if field.tag == "260" {
-                // SUBFIELD_DELIMITER = 0x1F
-                pub_year_260 = split_and_vectorize(&field.value, 0x1F as char)[3]
-                    .replace(['[', ']', 'c', '.', '?'], "")
-                    .trim()
-                    .to_string();
+                // We know this is Data Field, since it's 260, so we can unwrap
+                pub_year_260 = field.sub_fields.unwrap()[&'c'].clone();
             }
         }
         if pub_year_008 != pub_year_260 {
@@ -59,17 +60,18 @@ struct Record {
 
 #[derive(Debug, Clone)]
 struct Field {
-    tag: String,      // both Control and Data fields
-    value: String,    // for Control fields
-    indicator1: char, // for Data fields. Maybe single char?
-    indicator2: char, // for Data fields. Maybe single char?
-                      // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
+    tag: String,           // both Control and Data fields
+    indicator1: char,      // for Data fields. Maybe single char? Always digit?
+    indicator2: char,      // for Data fields. Maybe single char? Always digit?
+    value: Option<String>, // for Control fields
+    // I was thinking of HashMap<char, &[char]> here for efficiency, but maybe on next pass
+    sub_fields: Option<HashMap<char, String>>, // for Data fields
 }
 
 // Note to self, I think
 // SUBFIELD_DELIMITER = 0x1F
 // and FIELD_TERMINATOR = 0x1E
-// #[derive(Debug)]
+// #[derive(Debug, Clone)]
 // struct SubField<'a> {
 //     code: &'a [char],  // e.g. "a"
 //     value: &'a [char], // e.g. "Diabetes"
@@ -101,27 +103,50 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
         let starting_character_position =
             starting_character_position + starting_character_position_offset;
         // Let's make this easier and use a String
-        let value: String = raw_record
+        let raw_field: String = raw_record
             [starting_character_position..starting_character_position + field_length]
             .iter()
             .collect();
 
+        let tag: String = raw_directory_entry[0..=2].iter().collect();
         // Best guess as to where these indicators are...
-        let indicator1 = &value
+        let indicator1 = &raw_field
             .chars()
             .nth(0)
             .expect("Value too short to have an first indicator");
-        let indicator2 = &value
+        let indicator2 = &raw_field
             .chars()
             .nth(1)
             .expect("Value too short to have an second indicator");
 
+        let value: Option<String> = if tag.starts_with("00") {
+            Some(raw_field[2..].to_string())
+        } else {
+            None
+        };
+
+        let sub_fields = if !tag.starts_with("00") {
+            let subfields_as_raw_vec = split_and_vectorize(&raw_field, 0x1F as char);
+            let mut temp_sub_fields = HashMap::new();
+            for subfield_raw in subfields_as_raw_vec {
+                if subfield_raw.len() > 2 {
+                    temp_sub_fields.insert(
+                        subfield_raw.chars().nth(0).unwrap(), // code
+                        subfield_raw[2..].to_string(),        // value
+                    );
+                }
+            }
+            Some(temp_sub_fields)
+        } else {
+            None
+        };
+
         let this_field = Field {
-            tag: raw_directory_entry[0..=2].iter().collect(),
+            tag,
             value, // for Control fields
             indicator1: *indicator1,
             indicator2: *indicator2,
-            // sub_fields: &'a [char], // for Data fields. Eventually we'll use a SubField struct as the type here.
+            sub_fields, // for Data fields
         };
         fields.push(this_field);
     }
