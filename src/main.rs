@@ -64,7 +64,8 @@ struct Field {
     indicator1: char,      // for Data fields. Maybe single char? Always digit?
     indicator2: char,      // for Data fields. Maybe single char? Always digit?
     value: Option<String>, // for Control fields
-    // We use a HashMap for sub_fields for look-up efficiency
+    // We use a HashMap for sub_fields for look-up efficiency, where char is the code and String is
+    // the value
     // HashMap<char, &[char]> might be even more efficient, but maybe for
     // a subsequent pass.
     sub_fields: Option<HashMap<char, String>>, // for Data fields
