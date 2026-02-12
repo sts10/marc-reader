@@ -4,14 +4,15 @@ use std::io;
 use std::io::prelude::*;
 
 fn main() {
-    let raw_records = make_raw_records("./test-data/test_10.mrc");
+    // let raw_records = make_raw_records("./test-data/test_10.mrc");
+    let raw_records = make_raw_records("./bench-data/Books.All.2016.part01.utf8");
     println!("Found {} raw_records.", raw_records.len());
     for raw_record in raw_records {
         let parsed_record: Record = parse_raw_record(raw_record.to_vec());
-        println!(
-            "Leader: {}",
-            parsed_record.leader.iter().collect::<String>()
-        );
+        // println!(
+        //     "Leader: {}",
+        //     parsed_record.leader.iter().collect::<String>()
+        // );
         let mut pub_year_008 = "".to_string();
         let mut pub_year_260 = "".to_string();
         for field in parsed_record.fields {
@@ -26,13 +27,18 @@ fn main() {
                 pub_year_260 = field.sub_fields.unwrap()[&'c'].clone();
             }
         }
-        if pub_year_008 != pub_year_260 {
+        if pub_year_008 != "" && pub_year_260 != "" && pub_year_008 != pub_year_260 {
             // Now check for weird edge case (string formatting?)
             if pub_year_008.parse::<usize>().is_ok()
                 && pub_year_260.parse::<usize>().is_ok()
                 && pub_year_008.parse::<usize>() == pub_year_260.parse::<usize>()
             {
-                println!("Found messy record!\n{} != {}", pub_year_008, pub_year_260);
+                println!(
+                    "Found messy record! ({} != {}). Leader is {}",
+                    pub_year_008,
+                    pub_year_260,
+                    parsed_record.leader.iter().collect::<String>()
+                );
             }
         }
     }
@@ -93,6 +99,7 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
             break;
         }
         let field_length: usize = number_cleaner(&raw_directory_entry[3..=6]);
+
         let starting_character_position: usize = number_cleaner(&raw_directory_entry[7..=11]);
         let starting_character_position =
             starting_character_position + starting_character_position_offset;
