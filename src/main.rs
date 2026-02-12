@@ -93,21 +93,39 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
 
     let starting_character_position_offset = directory_size + 24;
     let leader: &Vec<char> = &raw_record[0..24].to_vec(); // inefficient?
+    assert!(leader.len() == 24);
 
     for raw_directory_entry in raw_record[24..raw_record.len()].chunks_exact(12) {
         if raw_directory_entry.contains(&(0x1e as char)) {
             break;
         }
+        assert_eq!(number_cleaner(&['4', '1', '0', '0']), 4100);
         let field_length: usize = number_cleaner(&raw_directory_entry[3..=6]);
 
         let starting_character_position: usize = number_cleaner(&raw_directory_entry[7..=11]);
-        let starting_character_position =
+        let actual_starting_character_position =
             starting_character_position + starting_character_position_offset;
-        // Let's make this easier and use a String
-        let raw_field: String = raw_record
-            [starting_character_position..starting_character_position + field_length]
-            .iter()
-            .collect();
+
+        let raw_field: String = if raw_record.len() >= (actual_starting_character_position + field_length)
+        {
+            raw_record[actual_starting_character_position..actual_starting_character_position + field_length]
+                .iter()
+                .collect()
+        } else {
+            eprintln!(
+                "raw_directory_entry is {}\nField length: {}\nSCP: {}\nOffset: {}\n So actual SCP is {}",
+                raw_directory_entry.iter().collect::<String>(),
+                field_length,
+                starting_character_position,
+                starting_character_position_offset, 
+                actual_starting_character_position
+            );
+            eprintln!(
+                "And the raw record is only {} characters long!",
+                raw_record.len()
+            );
+            panic!("index issue");
+        };
 
         let tag: String = raw_directory_entry[0..=2].iter().collect();
         // Best guess as to where these indicators are...
@@ -222,9 +240,10 @@ pub fn read_string_from_file_to_vector(file_path: &str) -> io::Result<Vec<char>>
 }
 
 /// ```
-/// assert_eq!(number_cleaner2(&['0', '0', '1', '1']), 11);
-/// assert_eq!(number_cleaner2(&['0', '0', '0', '5', '4']), 54);
-/// assert_eq!(number_cleaner2(&['0', '0', '1', '0', '7']), 107);
+/// assert_eq!(number_cleaner(&['0', '0', '1', '1']), 11);
+/// assert_eq!(number_cleaner(&['0', '0', '0', '5', '4']), 54);
+/// assert_eq!(number_cleaner(&['0', '0', '1', '0', '7']), 107);
+/// assert_eq!(number_cleaner(&['4', '1', '0', '0']), 4100);
 /// ```
 fn number_cleaner(chs: &[char]) -> usize {
     let as_string: String = chs.iter().collect();
