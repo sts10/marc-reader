@@ -20,11 +20,15 @@ fn main() {
                 // since we know this the is 008 field, we know it
                 // will have a value
                 let field_value = field.value.unwrap();
-                println!("  {} : {}", field.tag, field_value);
+                // println!("  {} : {}", field.tag, field_value);
                 pub_year_008 = (field_value[8..12]).trim().to_string();
             } else if field.tag == "260" {
                 // We know this is Data Field, since it's 260, so we can unwrap
-                pub_year_260 = field.sub_fields.unwrap()[&'c'].clone();
+                pub_year_260 = if field.sub_fields.clone().unwrap().contains_key(&'c') {
+                    field.sub_fields.unwrap()[&'c'].clone()
+                } else {
+                    "".to_string() // we'll make this variable an Option later
+                };
             }
         }
         if pub_year_008 != "" && pub_year_260 != "" && pub_year_008 != pub_year_260 {
@@ -91,9 +95,11 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
         }
     }
 
-    let starting_character_position_offset = directory_size + 24;
+    let starting_character_position_offset = directory_size + 24; 
     let leader: &Vec<char> = &raw_record[0..24].to_vec(); // inefficient?
     assert!(leader.len() == 24);
+
+    let mut print_start_of_next_record = false;
 
     for raw_directory_entry in raw_record[24..raw_record.len()].chunks_exact(12) {
         if raw_directory_entry.contains(&(0x1e as char)) {
@@ -112,6 +118,7 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
                 .iter()
                 .collect()
         } else {
+            eprintln!("We have an index issue! with this record, looking for a particular field!");
             eprintln!(
                 "raw_directory_entry is {}\nField length: {}\nSCP: {}\nOffset: {}\n So actual SCP is {}",
                 raw_directory_entry.iter().collect::<String>(),
@@ -124,8 +131,18 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
                 "And the raw record is only {} characters long!",
                 raw_record.len()
             );
+            eprintln!("field?:\n{}", 
+                raw_record[actual_starting_character_position..].iter().collect::<String>());
             panic!("index issue");
+            eprintln!("Setting print start to true");
+            print_start_of_next_record = true;
+            continue;
         };
+
+        if print_start_of_next_record == true {
+            eprintln!("Raw field starts with:\n{}", raw_record[0..20].iter().collect::<String>());
+            panic!("halting");
+        }
 
         let tag: String = raw_directory_entry[0..=2].iter().collect();
         // Best guess as to where these indicators are...
@@ -151,7 +168,10 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
                 if subfield_raw.len() > 2 {
                     temp_sub_fields.insert(
                         subfield_raw.chars().nth(0).unwrap(), // code
-                        subfield_raw[2..].to_string(),        // value
+                        subfield_raw.chars().collect::<Vec<_>>()[1..].iter().collect::<String>(), // value
+                        // subfield_raw.as_bytes().utf8_chunks().nth(0), // code
+                        // subfield_raw.as_bytes().utf8_chunks()[1..], // value
+
                     );
                 }
             }
