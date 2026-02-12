@@ -71,15 +71,6 @@ struct Field {
     sub_fields: Option<HashMap<char, String>>, // for Data fields
 }
 
-// Note to self, I think
-// SUBFIELD_DELIMITER = 0x1F
-// and FIELD_TERMINATOR = 0x1E
-// #[derive(Debug, Clone)]
-// struct SubField<'a> {
-//     code: &'a [char],  // e.g. "a"
-//     value: &'a [char], // e.g. "Diabetes"
-// }
-
 fn parse_raw_record(raw_record: Vec<char>) -> Record {
     let mut fields: Vec<Field> = vec![];
 
@@ -232,17 +223,6 @@ fn number_cleaner(chs: &[char]) -> usize {
     let as_string: String = chs.iter().collect();
     as_string.parse().unwrap()
 }
-
-// /// Simple helper function that splits a `str` by a given substring `str`,
-// /// Then returns a Vector of `str`s.
-// /// ```
-// /// use crate::split_and_vectorize;
-// /// assert_eq!(split_and_vectorize("a:b:c",":"), vec!["a","b","c"]);
-// /// ```
-// /// I find this a handy general helper function.
-// pub fn split_and_vectorize<'a>(string_to_split: &'a str, splitter: &str) -> Vec<&'a str> {
-//     string_to_split.split(splitter).collect()
-// }
 
 pub fn split_and_vectorize<'a>(string_to_split: &'a str, splitter: char) -> Vec<&'a str> {
     string_to_split.split(splitter).collect()

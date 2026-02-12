@@ -1,3 +1,16 @@
+
+```rust
+// Note to self, I think
+// SUBFIELD_DELIMITER = 0x1F
+// and FIELD_TERMINATOR = 0x1E
+// #[derive(Debug, Clone)]
+// struct SubField<'a> {
+//     code: &'a [char],  // e.g. "a"
+//     value: &'a [char], // e.g. "Diabetes"
+// }
+```
+
+
 This one might actually be useful in the future?
 ```rust
 fn parse_single_directory_entry(d_entry: &[char]) -> DEntry<'_> {
