@@ -14,8 +14,8 @@ fn main() {
         let mut pub_year_260_or_264 = "".to_string();
         for field in parsed_record.fields {
             if field.tag == "008" {
-                // since we know this the is 008 field, we know it
-                // will have a value
+                // since we know this the is 008 field, we know it will have a value, so we can
+                // safely unwrap here.
                 let field_value = field.value.unwrap();
                 // https://www.oclc.org/bibformats/en/fixedfield/dtst.html
                 // https://www.oclc.org/bibformats/en/fixedfield/dates.html
@@ -239,10 +239,8 @@ fn chop_record_using_chars(
     let mut raw_field = "".to_string();
     let mut char_index = 0;
     let mut byte_index = 0;
-    // seems insane but let's try
-    // for byte in raw_record.iter().collect::<String>().chars() {
     for ch in raw_record {
-        let mut buffer = [0; 4];
+        let mut buffer = [0; 4]; // can probably be 2 for utf8
         let ch_length_in_bytes = ch.encode_utf8(&mut buffer).len();
         char_index += 1;
         byte_index += ch_length_in_bytes;
