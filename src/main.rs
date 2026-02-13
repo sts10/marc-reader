@@ -9,12 +9,9 @@ fn main() {
     println!("Found {} raw_records.", raw_records.len());
     for raw_record in raw_records {
         let parsed_record: Record = parse_raw_record(raw_record.to_vec());
-        // println!(
-        //     "Leader: {}",
-        //     parsed_record.leader.iter().collect::<String>()
-        // );
+
         let mut pub_year_008 = "".to_string();
-        let mut pub_year_260 = "".to_string();
+        let mut pub_year_260_or_264 = "".to_string();
         for field in parsed_record.fields {
             if field.tag == "008" {
                 // since we know this the is 008 field, we know it
@@ -30,28 +27,28 @@ fn main() {
                 };
             } else if (field.tag == "260" || field.tag == "264") {
                 // We know this is Data Field, since it's 260, so we can unwrap
-                pub_year_260 = if field.sub_fields.clone().unwrap().contains_key(&'c') {
+                pub_year_260_or_264 = if field.sub_fields.clone().unwrap().contains_key(&'c') {
                     field.sub_fields.unwrap()[&'c'].clone()
                 } else {
                     "".to_string() // we'll make this variable an Option later
                 };
             }
         }
-        if pub_year_008 != "" && pub_year_260 != "" && pub_year_008 != pub_year_260 {
+        if pub_year_008 != "" && pub_year_260_or_264 != "" && pub_year_008 != pub_year_260_or_264 {
             // Now check for weird edge case (string formatting?)
             if pub_year_008.parse::<usize>().is_ok()
-                && pub_year_260.parse::<usize>().is_ok()
-                && pub_year_008.parse::<usize>() == pub_year_260.parse::<usize>()
+                && pub_year_260_or_264.parse::<usize>().is_ok()
+                && pub_year_008.parse::<usize>() == pub_year_260_or_264.parse::<usize>()
             {
                 println!(
                     "Found messy record! ({} != {}). Leader is {}",
                     pub_year_008,
-                    pub_year_260,
+                    pub_year_260_or_264,
                     parsed_record.leader.iter().collect::<String>()
                 );
             }
         } else {
-            // println!("{} == {}", pub_year_008, pub_year_260);
+            // println!("{} == {}", pub_year_008, pub_year_260_or_264);
         }
     }
 }
