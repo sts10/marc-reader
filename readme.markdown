@@ -6,6 +6,10 @@ First-semester MLIS student trying to learn the structure of [a MARC record](htt
 * [https://loc.gov/marc/umb/](https://loc.gov/marc/umb/)
 * [https://github.com/hectorcorrea/marcli/](https://github.com/hectorcorrea/marcli/)
 * [https://gitlab.com/pymarc/pymarc](https://github.com/hectorcorrea/marcli/)
+### On date parsing
+- [https://www.oclc.org/bibformats/en/fixedfield/dtst.html](https://www.oclc.org/bibformats/en/fixedfield/dtst.html)
+- [https://www.oclc.org/bibformats/en/fixedfield/dates.html](https://www.oclc.org/bibformats/en/fixedfield/dates.html)
+- [https://www.oclc.org/bibformats/en/2xx/264.html](https://www.oclc.org/bibformats/en/2xx/264.html)
 
 ## Test data from:
 * [https://github.com/hectorcorrea/marcli/tree/main/data](https://github.com/hectorcorrea/marcli/tree/main/data)
