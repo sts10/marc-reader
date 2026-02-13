@@ -20,9 +20,15 @@ fn main() {
                 // since we know this the is 008 field, we know it
                 // will have a value
                 let field_value = field.value.unwrap();
-                // println!("  {} : {}", field.tag, field_value);
-                pub_year_008 = (field_value[8..12]).trim().to_string();
-            } else if field.tag == "260" {
+                // https://www.oclc.org/bibformats/en/fixedfield/dtst.html
+                // https://www.oclc.org/bibformats/en/fixedfield/dates.html
+                // https://www.oclc.org/bibformats/en/2xx/264.html
+                pub_year_008 = if field_value.chars().nth(8).unwrap() == 's' {
+                    (field_value[9..13]).to_string()
+                } else {
+                    (field_value[8..12]).to_string()
+                };
+            } else if (field.tag == "260" || field.tag == "264") {
                 // We know this is Data Field, since it's 260, so we can unwrap
                 pub_year_260 = if field.sub_fields.clone().unwrap().contains_key(&'c') {
                     field.sub_fields.unwrap()[&'c'].clone()
@@ -44,6 +50,8 @@ fn main() {
                     parsed_record.leader.iter().collect::<String>()
                 );
             }
+        } else {
+            // println!("{} == {}", pub_year_008, pub_year_260);
         }
     }
 }
@@ -70,10 +78,10 @@ struct Record {
 
 #[derive(Debug, Clone)]
 struct Field {
-    tag: String,           // both Control and Data fields
-    indicator1: char,      // for Data fields. Maybe single char? Always digit?
-    indicator2: char,      // for Data fields. Maybe single char? Always digit?
-    value: Option<String>, // for Control fields
+    tag: String,              // both Control and Data fields
+    indicator1: Option<char>, // for Data fields. Maybe single char? Always digit?
+    indicator2: Option<char>, // for Data fields. Maybe single char? Always digit?
+    value: Option<String>,    // for Control fields
     // We use a HashMap for sub_fields for look-up efficiency, where char is the code and String is
     // the value
     // HashMap<char, &[char]> might be even more efficient, but maybe for
@@ -95,7 +103,7 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
         }
     }
 
-    let starting_character_position_offset = directory_size + 24; 
+    let starting_character_position_offset = directory_size + 24;
     let leader: &Vec<char> = &raw_record[0..24].to_vec(); // inefficient?
     assert!(leader.len() == 24);
 
@@ -103,6 +111,7 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
 
     for raw_directory_entry in raw_record[24..raw_record.len()].chunks_exact(12) {
         if raw_directory_entry.contains(&(0x1e as char)) {
+            // we reached end of DIRECTORY
             break;
         }
         assert_eq!(number_cleaner(&['4', '1', '0', '0']), 4100);
@@ -112,51 +121,16 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
         let actual_starting_character_position =
             starting_character_position + starting_character_position_offset;
 
-        let raw_field: String = if raw_record.len() >= (actual_starting_character_position + field_length)
-        {
-            raw_record[actual_starting_character_position..actual_starting_character_position + field_length]
-                .iter()
-                .collect()
-        } else {
-            eprintln!("We have an index issue! with this record, looking for a particular field!");
-            eprintln!(
-                "raw_directory_entry is {}\nField length: {}\nSCP: {}\nOffset: {}\n So actual SCP is {}",
-                raw_directory_entry.iter().collect::<String>(),
-                field_length,
-                starting_character_position,
-                starting_character_position_offset, 
-                actual_starting_character_position
-            );
-            eprintln!(
-                "And the raw record is only {} characters long!",
-                raw_record.len()
-            );
-            eprintln!("field?:\n{}", 
-                raw_record[actual_starting_character_position..].iter().collect::<String>());
-            panic!("index issue");
-            eprintln!("Setting print start to true");
-            print_start_of_next_record = true;
-            continue;
-        };
-
-        if print_start_of_next_record == true {
-            eprintln!("Raw field starts with:\n{}", raw_record[0..20].iter().collect::<String>());
-            panic!("halting");
-        }
+        let raw_field: String = chop_record_using_chars(
+            &raw_record,
+            actual_starting_character_position,
+            field_length,
+        );
 
         let tag: String = raw_directory_entry[0..=2].iter().collect();
-        // Best guess as to where these indicators are...
-        let indicator1 = &raw_field
-            .chars()
-            .nth(0)
-            .expect("Value too short to have an first indicator");
-        let indicator2 = &raw_field
-            .chars()
-            .nth(1)
-            .expect("Value too short to have an second indicator");
 
         let value: Option<String> = if tag.starts_with("00") {
-            Some(raw_field[2..].to_string())
+            Some(raw_field.to_string())
         } else {
             None
         };
@@ -168,10 +142,9 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
                 if subfield_raw.len() > 2 {
                     temp_sub_fields.insert(
                         subfield_raw.chars().nth(0).unwrap(), // code
-                        subfield_raw.chars().collect::<Vec<_>>()[1..].iter().collect::<String>(), // value
-                        // subfield_raw.as_bytes().utf8_chunks().nth(0), // code
-                        // subfield_raw.as_bytes().utf8_chunks()[1..], // value
-
+                        subfield_raw.chars().collect::<Vec<_>>()[1..]
+                            .iter()
+                            .collect::<String>(), // value
                     );
                 }
             }
@@ -180,12 +153,29 @@ fn parse_raw_record(raw_record: Vec<char>) -> Record {
             None
         };
 
+        // Control fields do not have indicators!!
+        let indicator1 = if !tag.starts_with("00") {
+            Some(&raw_field.chars().nth(0).unwrap())
+        } else {
+            None
+        };
+        let indicator2 = if !tag.starts_with("00") {
+            Some(
+                &raw_field
+                    .chars()
+                    .nth(1)
+                    .expect("Value too short to have an second indicator"),
+            )
+        } else {
+            None
+        };
+
         let this_field = Field {
             tag,
-            value, // for Control fields
-            indicator1: *indicator1,
-            indicator2: *indicator2,
-            sub_fields, // for Data fields
+            value,                           // for Control fields only
+            indicator1: indicator1.copied(), // Data fields only
+            indicator2: indicator2.copied(), // Data fields only
+            sub_fields,                      // for Data fields only
         };
         fields.push(this_field);
     }
@@ -241,6 +231,30 @@ fn make_raw_records(file_name: &str) -> Vec<Vec<char>> {
     // an empty Vector
     records.pop();
     records
+}
+
+/// Attempts to measure field_length in bytes, I think?
+fn chop_record_using_chars(
+    raw_record: &[char],
+    starting_position: usize,
+    field_length: usize,
+) -> String {
+    let mut raw_field = "".to_string();
+    let mut char_index = 0;
+    let mut byte_index = 0;
+    // seems insane but let's try
+    // for byte in raw_record.iter().collect::<String>().chars() {
+    for ch in raw_record {
+        let mut buffer = [0; 4];
+        let ch_length_in_bytes = ch.encode_utf8(&mut buffer).len();
+        char_index += 1;
+        byte_index += ch_length_in_bytes;
+        if byte_index >= starting_position && byte_index <= starting_position + field_length {
+            raw_field.push(*ch);
+        }
+    }
+    // raw_field.iter().collect::<String>()
+    raw_field
 }
 
 /// Reads a text file into a Vector of `char`s (characters)
